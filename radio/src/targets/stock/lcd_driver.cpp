@@ -36,22 +36,67 @@
 
 #include "opentx.h"
 
+#if defined(SSD1306)
+
+//The address (0x3C) is 011 1100. When we shift left for writing in I2C, it becomes 0111 1000
+#define SSD1306_ADDRESS 0x78
+#define INVERT_SCREEN 0
+
+void I2C_init()
+{
+  PORTD |= (1 << SDA); //Internal pullup resistors for SDA and SCL
+  PORTD |= (1 << SCL);
+  TWSR = 0x00; //Prescaler 0
+  TWBR = 0x0C; //400kHz
+  TWCR = (1<<TWEN); //Enabled
+}
+
+//Send start signal
+void I2C_start()
+{
+  TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
+  while ((TWCR & (1 << TWINT)) == 0); //Wait for transaction to complete
+}
+
+//Send stop signal
+void I2C_stop()
+{
+  TWCR = (1 << TWINT) | (1 << TWSTO) | (1 << TWEN);
+}
+
+//Write this byte to the I2C line
+void I2C_write(uint8_t data)
+{
+  TWDR = data;
+  TWCR = (1 << TWINT) | (1 << TWEN);
+  while ((TWCR & (1 << TWINT)) == 0);
+}
+#endif
+
 void lcdSendCtl(uint8_t val)
 {
+#if defined(SSD1306)
+  I2C_start();
+  I2C_write(SSD1306_ADDRESS); 
+  I2C_write(0x00); //Co 0; D/C 0
+  I2C_write(val);
+  I2C_stop();
+#else
   PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_CS1);
-#if defined(LCD_MULTIPLEX)
-  DDRA = 0xFF; //Set LCD_DAT pins to output
-#endif
+  #if defined(LCD_MULTIPLEX)
+    DDRA = 0xFF; //Set LCD_DAT pins to output
+  #endif
   PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_A0);
   PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_RnW);
   PORTA_LCD_DAT = val;
   PORTC_LCD_CTRL |=  (1<<OUT_C_LCD_E);
   PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_E);
   PORTC_LCD_CTRL |=  (1<<OUT_C_LCD_A0);
-#if defined(LCD_MULTIPLEX)
-  DDRA = 0x00; //Set LCD_DAT pins to input
+  #if defined(LCD_MULTIPLEX)
+    DDRA = 0x00; //Set LCD_DAT pins to input
+  #endif
+    PORTC_LCD_CTRL |=  (1<<OUT_C_LCD_CS1);
 #endif
-  PORTC_LCD_CTRL |=  (1<<OUT_C_LCD_CS1);
 }
 
 #if defined(PCBSTD) && defined(VOICE)
@@ -99,6 +144,29 @@ const static pm_uchar lcdInitSequence[] PROGMEM =
    0x0C, //Display ON, cursor and blink OFF
    0x01, //Clear display, reset address
    0x06  //Display ON, no cursor
+#elif defined(SSD1306)
+  0xAE,       //Display off
+  0xD5, 0x80, //Set internal oscillator to default
+  0xA8, 0x3F, //Set multiplex mode to 63 (i.e., 64 lines)
+  0xD3, 0x00, //Display offset 0
+  0x8D, 0x14, //Enable internal DC/DC converter 
+  0x20, 0x00, //Set page addressing mode
+  0xDA, 0x12, //Set COM pins to match OLED panel
+  0xD9, 0xF1, //Precharge for 15 clocks, discharge 1
+  0xDB, 0x40, //Set VCOMH to 0x4 - undocumented
+  #if INVERT_SCREEN
+    0xA0,     //0 -> 127
+    0xC0,     //0 -> 63
+  #else
+    0xA1,     //127 -> 0
+    0xC8,     //63  -> 0
+  #endif
+  0x40,       //Start on line 0
+  0x81, 0x7F,
+  0xA4,       //Read display from RAM (rather than 0xA5 - all on)
+  0xA6,       //Normal display polarity
+  0x2E,       //Scrolling off
+  0xAF        //Display on
 #else    //ST7565P (default 9x LCD)
    0xE2, //Initialize the internal functions
    0xAE, //DON = 0: display OFF
@@ -118,19 +186,23 @@ const static pm_uchar lcdInitSequence[] PROGMEM =
 inline void lcdInit()
 {
   LCD_LOCK();
-  PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_RES);  //LCD reset
-  _delay_us(2);
-  PORTC_LCD_CTRL |= (1<<OUT_C_LCD_RES);  //LCD normal operation
-#if defined(LCD_ST7920)
-  _delay_ms(40);
-#else
-  _delay_us(1500);
-#endif
+  #if defined(SSD1306)
+    I2C_init();
+  #else
+    PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_RES);  //LCD reset
+    _delay_us(2);
+    PORTC_LCD_CTRL |= (1<<OUT_C_LCD_RES);  //LCD normal operation
+    #if defined(LCD_ST7920)
+      _delay_ms(40);
+    #else
+      _delay_us(1500);
+    #endif
+  #endif
   for (uint8_t i=0; i<DIM(lcdInitSequence); i++) {
-    lcdSendCtl(pgm_read_byte(&lcdInitSequence[i])) ;
-#if defined(LCD_ST7920)
-    _delay_us(80);
-#endif
+    lcdSendCtl(pgm_read_byte(&lcdInitSequence[i]));
+    #if defined(LCD_ST7920)
+      _delay_us(80);
+    #endif
   }
 #if defined(LCD_ERC12864FSF)
   g_eeGeneral.contrast = 0x2D;
@@ -145,7 +217,11 @@ void lcdSetRefVolt(uint8_t val)
 #if !defined(LCD_ST7920) // No contrast setting for ST7920
   LCD_LOCK();
   lcdSendCtl(0x81);
-  lcdSendCtl(val);
+  #if defined(SSD1306)
+    lcdSendCtl((val << 2) + 3); // 3 to 255
+  #else
+    lcdSendCtl(val); // 0 to 63
+  #endif
   LCD_UNLOCK();
 #endif
 }
@@ -245,6 +321,34 @@ void lcdRefresh()
       PORTC_LCD_CTRL &= ~(1<<OUT_C_LCD_E);
       _delay_us(49);
     }
+  }
+#elif defined(SSD1306)
+  uint8_t *p = displayBuf;
+  for (uint8_t y = 0xB0; y< 0xB8; y++)
+  {
+    lcdSendCtl(y);    // 0xB0..B7 sets the page to which we write
+    
+    lcdSendCtl(0x00);  //Set column address to 0x00
+    lcdSendCtl(0x10); //high nybble
+    I2C_start();
+    I2C_write(SSD1306_ADDRESS);
+    I2C_write(0x40); //Co 0; D/C 1 so we can write a stream
+    for (char x=64; x>0; x--)
+    {
+      I2C_write(*p++);
+    }
+    I2C_stop();
+
+    lcdSendCtl(0x00); //Set column address to 0x40
+    lcdSendCtl(0x14); 
+    I2C_start();
+    I2C_write(SSD1306_ADDRESS);
+    I2C_write(0x40); //Co 0; D/C 1 so we can write a stream
+    for (char x=64; x>0; x--)
+    {
+      I2C_write(*p++);
+    }
+    I2C_stop();
   }
 #else  //All other LCD
   uint8_t * p = displayBuf;

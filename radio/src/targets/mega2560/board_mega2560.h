@@ -38,7 +38,13 @@
 #ifndef board_mega2560_h
 #define board_mega2560_h
 
+//#define SSD1306
+
 #include "../common_avr/board_avr.h"
+
+ // I2C pins
+ #define SCL PORTD0
+ #define SDA PORTD1
 
 // Keys
 #define KEYS_GPIO_REG_MENU         pinl                          
