@@ -39,10 +39,10 @@ DOUBLE_WRITE_OK = NO
 
 # Command to read/write FLASH/EEPROM images. Currently
 # Must have avrdude interface
-AVRDUDE = /usr/local/bin/avrdude
+AVRDUDE = /usr/local/CrossPack-AVR/bin/avrdude
 
 # Device options for AVRDUDE Command.
-AVRDEVICE = -c usbasp -p m64
+AVRDEVICE = -c usbasp -p m2560
 
 # Delay to start second AVRDUDE command (required by some).
 DELAY = 5
@@ -52,14 +52,14 @@ DELAY = 5
 # PCB version
 # Values: 9X, 9X128, 9X2561, 9XR, 9XR128, 9XR2561, GRUVIN9X, MEGA2560, SKY9X, 9XRPRO, AR9X, TARANIS
 # Old values STD and STD128 are mapped to 9X and 9X128 for compatibility
-PCB = 9X
+PCB = MEGA2560
 
 # PCB revision
 PCBREV =
 
 # LCD
-# Values: DEFAULT, ST7565P, ST7565R, ERC12864FSF, ST7920
-LCD = DEFAULT
+# Values: DEFAULT, ST7565P, ST7565R, ERC12864FSF, ST7920, SSD1306
+LCD = SSD1306
 
 # Enable JETI-Telemetry or FrSky Telemetry reception on UART0
 # For this option you need to modify your hardware!
@@ -399,7 +399,7 @@ TRANSLATE = -python ../util/translate.py
 
 VERSION_MAJOR = 2
 VERSION_MINOR = 1
-VERSION_REVISION = 9
+VERSION_REVISION = 10
 
 VERSION = $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_REVISION)$(OPENTX_VERSION_SUFFIX)
 
@@ -1173,6 +1173,8 @@ else ifeq ($(LCD), ERC12864FSF)
   CPPDEFS += -DLCD_ERC12864FSF
 else ifeq ($(LCD), ST7920)
   CPPDEFS += -DLCD_ST7920
+else ifeq ($(LCD), SSD1306)
+	CPPDEFS += -DSSD1306
 endif   
 
 ifeq ($(AUTOSWITCH), YES)
