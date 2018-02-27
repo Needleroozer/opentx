@@ -6,8 +6,6 @@
 #include "progressdialog.h"
 #include "process_flash.h"
 
-// #include "qextserialenumerator.h"
-
 #if !defined WIN32 && defined __GNUC__
 #include <unistd.h>
 #endif
@@ -21,7 +19,6 @@ burnConfigDialog::burnConfigDialog(QWidget *parent) :
     ui->avrdude_programmer->model()->sort(0);
 
     getSettings();
-    //populatePorts();
     populateProgrammers();
     EEPROMInterface *eepromInterface = GetEepromInterface();
     if (IS_TARANIS(eepromInterface->getBoard())) {
@@ -141,7 +138,15 @@ void burnConfigDialog::getSettings()
     int idx3 = ui->avrdude_mcu->findText(getMCU());
     int idx4 = ui->arm_mcu->findText(getArmMCU());
     if(idx1>=0) ui->avrdude_programmer->setCurrentIndex(idx1);
-    if(idx2>=0) ui->avrdude_port->setCurrentIndex(idx2);
+    if(idx2>=0)
+    {
+      ui->avrdude_port->setCurrentIndex(idx2);
+    }
+    else if (!getPort().isEmpty()) //If getPort() is a custom value...
+    {
+      ui->avrdude_port->addItem(getPort());
+      ui->avrdude_port->setCurrentIndex(ui->avrdude_port->findText(getPort()));
+    }
     if(idx3>=0) ui->avrdude_mcu->setCurrentIndex(idx3);
     if(idx4>=0) ui->arm_mcu->setCurrentIndex(idx4);
     QFile file;
@@ -199,16 +204,6 @@ void burnConfigDialog::populateProgrammers()
     int idx1 = ui->avrdude_programmer->findText(avrProgrammer_temp);
     if(idx1>=0) ui->avrdude_programmer->setCurrentIndex(idx1);
 }
-
-// void burnConfigDialog::populatePorts()
-// {
-//     QList<QextPortInfo> ports = QextSerialEnumerator::getPorts();
-
-//     foreach (QextPortInfo port, ports)
-//     {
-//       ui->avrdude_port->addItem(port.portName);
-//     }
-// }
 
 void burnConfigDialog::on_avrdude_programmer_currentIndexChanged(QString )
 {
