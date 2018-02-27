@@ -6,6 +6,8 @@
 #include "progressdialog.h"
 #include "process_flash.h"
 
+// #include "qextserialenumerator.h"
+
 #if !defined WIN32 && defined __GNUC__
 #include <unistd.h>
 #endif
@@ -19,6 +21,7 @@ burnConfigDialog::burnConfigDialog(QWidget *parent) :
     ui->avrdude_programmer->model()->sort(0);
 
     getSettings();
+    //populatePorts();
     populateProgrammers();
     EEPROMInterface *eepromInterface = GetEepromInterface();
     if (IS_TARANIS(eepromInterface->getBoard())) {
@@ -75,6 +78,8 @@ burnConfigDialog::burnConfigDialog(QWidget *parent) :
     ui->arm_mcu->hide();
     ui->label_dfu2->hide();
     ui->dfuArgs->hide();
+
+    ui->avrdude_port->setEditable(true);
 
     QTimer::singleShot(0, this, SLOT(shrink()));
     connect(this,SIGNAL(accepted()),this,SLOT(putSettings()));
@@ -194,6 +199,16 @@ void burnConfigDialog::populateProgrammers()
     int idx1 = ui->avrdude_programmer->findText(avrProgrammer_temp);
     if(idx1>=0) ui->avrdude_programmer->setCurrentIndex(idx1);
 }
+
+// void burnConfigDialog::populatePorts()
+// {
+//     QList<QextPortInfo> ports = QextSerialEnumerator::getPorts();
+
+//     foreach (QextPortInfo port, ports)
+//     {
+//       ui->avrdude_port->addItem(port.portName);
+//     }
+// }
 
 void burnConfigDialog::on_avrdude_programmer_currentIndexChanged(QString )
 {

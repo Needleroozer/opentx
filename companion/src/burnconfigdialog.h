@@ -37,6 +37,7 @@ private:
     Ui::burnConfigDialog *ui;
 
     void populateProgrammers();
+    // void populatePorts();
 
     QString avrLoc;
     QString sambaLoc;
