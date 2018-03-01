@@ -40,7 +40,6 @@
 
 //The address (0x3C) is 011 1100. When we shift left for writing in I2C, it becomes 0111 1000
 #define SSD1306_ADDRESS 0x78
-#define INVERT_SCREEN 0
 
 void I2C_init()
 {
@@ -154,7 +153,7 @@ const static pm_uchar lcdInitSequence[] PROGMEM =
   0xDA, 0x12, //Set COM pins to match OLED panel
   0xD9, 0xF1, //Precharge for 15 clocks, discharge 1
   0xDB, 0x40, //Set VCOMH to 0x4 - undocumented
-  #if INVERT_SCREEN
+  #if SSD1306_INVERT
     0xA0,     //0 -> 127
     0xC0,     //0 -> 63
   #else
