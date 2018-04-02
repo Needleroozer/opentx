@@ -161,7 +161,7 @@ const static pm_uchar lcdInitSequence[] PROGMEM =
     0xC8,     //63  -> 0
   #endif
   0x40,       //Start on line 0
-  0x81, 0x7F,
+  0x81, 0x7F, //Full contrast
   0xA4,       //Read display from RAM (rather than 0xA5 - all on)
   0xA6,       //Normal display polarity
   0x2E,       //Scrolling off
@@ -327,8 +327,12 @@ void lcdRefresh()
   {
     lcdSendCtl(y);    // 0xB0..B7 sets the page to which we write
     
-    lcdSendCtl(0x00);  //Set column address to 0x00
-    lcdSendCtl(0x10); //high nybble
+    #if defined(SH1106)
+    lcdSendCtl(0x02);  
+    #else
+    lcdSendCtl(0x00);
+    #endif
+    lcdSendCtl(0x10); //Set column address to 0x00 or 0x02
     I2C_start();
     I2C_write(SSD1306_ADDRESS);
     I2C_write(0x40); //Co 0; D/C 1 so we can write a stream
@@ -338,8 +342,12 @@ void lcdRefresh()
     }
     I2C_stop();
 
-    lcdSendCtl(0x00); //Set column address to 0x40
-    lcdSendCtl(0x14); 
+    #if defined(SH1106)
+    lcdSendCtl(0x02); 
+    #else
+    lcdSendCtl(0x00);
+    #endif
+    lcdSendCtl(0x14); // 0x40 or 0x42
     I2C_start();
     I2C_write(SSD1306_ADDRESS);
     I2C_write(0x40); //Co 0; D/C 1 so we can write a stream
